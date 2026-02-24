@@ -76,7 +76,7 @@ if st.session_state.is_scanning:
     with st.status("Initializing scan...", expanded=True) as status_ui:
         try:
             payload = {"url": st.session_state.url_val, "custom_keywords": st.session_state.kw_val}
-            with requests.post("http://localhost:8000/scan-video/", json=payload, stream=True) as r:
+            with requests.post("https://saviomarcus-youtube-scanner-api.hf.space/scan-video/", json=payload, stream=True) as r:
                 r.raise_for_status()
                 for line in r.iter_lines():
                     if line:
