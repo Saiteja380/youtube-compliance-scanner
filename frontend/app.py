@@ -5,8 +5,6 @@ import json
 
 st.set_page_config(page_title="Compliance Scanner", layout="wide")
 
-# --- CUSTOM CSS & STATIC FOOTER ---
-# FIX: Moved the HTML footer up here so it renders instantly, before the app pauses to process the video.
 st.markdown("""
     <style>
     .footer {
@@ -24,7 +22,6 @@ st.markdown("""
     <div class='footer'><span>サイテジャ</span></div>
 """, unsafe_allow_html=True)
 
-# --- 1. SESSION STATE INITIALIZATION ---
 if "is_scanning" not in st.session_state:
     st.session_state.is_scanning = False
 if "final_data" not in st.session_state:
@@ -36,7 +33,6 @@ if "url_val" not in st.session_state:
 if "kw_val" not in st.session_state:
     st.session_state.kw_val = "వ్యసనం, అలవాటు, ఫోన్ లోనే ఉండడం, పట్టుకుని కూర్చోవడం, అతిగా వాడటం"
 
-# --- 2. THE UI HEADER ---
 st.markdown("""
     <h1 style='display: flex; align-items: center; gap: 15px;'>
         <img src='https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg' width='50'/> 
@@ -44,7 +40,6 @@ st.markdown("""
     </h1>
 """, unsafe_allow_html=True)
 
-# Render Inputs (Frozen during processing)
 url_input = st.text_input("YouTube URL:", value=st.session_state.url_val, disabled=st.session_state.is_scanning)
 keywords_input = st.text_input("Keywords (comma-separated):", value=st.session_state.kw_val, disabled=st.session_state.is_scanning)
 
@@ -54,7 +49,6 @@ with col1:
 with col2:
     stop_clicked = st.button("Stop Process", type="secondary", disabled=not st.session_state.is_scanning)
 
-# --- 3. STATE TRANSITIONS ---
 if scan_clicked and url_input and keywords_input:
     st.session_state.is_scanning = True
     st.session_state.url_val = url_input
@@ -68,7 +62,6 @@ if stop_clicked:
     st.session_state.error_msg = "Scan manually aborted by user."
     st.rerun()
 
-# --- 4. THE EXECUTION BLOCK ---
 if st.session_state.is_scanning:
     progress_bar = st.empty()
     status_text = st.empty()
@@ -76,7 +69,9 @@ if st.session_state.is_scanning:
     with st.status("Initializing scan...", expanded=True) as status_ui:
         try:
             payload = {"url": st.session_state.url_val, "custom_keywords": st.session_state.kw_val}
-            with requests.post("https://saviomarcus-youtube-scanner-api.hf.space/scan-video/", json=payload, stream=True) as r:
+            
+            # Make sure your Hugging Face URL is correctly pasted here!
+            with requests.post("http://localhost:8000/scan-video/", json=payload, stream=True) as r:
                 r.raise_for_status()
                 for line in r.iter_lines():
                     if line:
@@ -93,15 +88,19 @@ if st.session_state.is_scanning:
                             progress_bar.progress(100)
                             status_ui.update(label="Analysis Finished!", state="complete", expanded=False)
                             
+                        # FIX: This block catches the backend errors and shows them!
+                        elif msg["status"] == "error":
+                            st.session_state.error_msg = f"Backend Error: {msg['message']}"
+                            status_ui.update(label="System Error", state="error", expanded=False)
+                            
             st.session_state.is_scanning = False
             st.rerun()
             
         except requests.exceptions.RequestException as e:
-            st.session_state.error_msg = f"Backend Connection Error: {e}"
+            st.session_state.error_msg = f"Connection Error: {e}"
             st.session_state.is_scanning = False
             st.rerun()
 
-# --- 5. DISPLAY RESULTS CONTAINER ---
 if not st.session_state.is_scanning:
     if st.session_state.error_msg:
         st.error(st.session_state.error_msg)
